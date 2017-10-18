@@ -56,6 +56,7 @@ module FilterTable
       table = @params
       conditions.each do |field, condition|
         filters += " #{field} == #{condition.inspect}"
+        table = resolve_column(table, field)
         table = filter_lines(table, field, condition)
       end
 
@@ -95,6 +96,18 @@ module FilterTable
     alias inspect to_s
 
     private
+
+    def resolve_column(table, field)
+      newtable = []
+      table.find_all do |line|
+        newline = line
+        if line.key?(field) && line[field].respond_to?(:call)
+          newline[field] = line[field].call
+        end
+        newtable.push(newline)
+      end
+      newtable
+    end
 
     def matches_float(x, y)
       return false if x.nil?

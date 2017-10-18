@@ -6,10 +6,26 @@
 require 'helper'
 
 describe FilterTable do
+  let(:eval_to_3) {
+    Proc.new { 3 }
+  }
+  let(:eval_to_nil) {
+    Proc.new { nil }
+  }
+  let(:eval_to_1_00) {
+    Proc.new { "1.00" }
+  }
+  let(:eval_to_false) {
+    Proc.new { false }
+  }
+  let(:eval_to_yay) {
+    Proc.new { "yay" }
+  }
   let (:data) {[
     { foo: 3, bar: true, baz: 'yay', num: nil, snum: "0" },
     { foo: 2, bar: false, baz: 'noo', num: 1, snum: nil },
     { foo: 2, bar: false, baz: 'whatever', num: 2, snum: "1.00" },
+    { foo: eval_to_3, bar: eval_to_false, baz: eval_to_yay, num: eval_to_nil, snum: eval_to_1_00 },
   ]}
 
   let (:resource) {
@@ -57,7 +73,7 @@ describe FilterTable do
     it 'can expose the where method' do
       factory.add_accessor(:where).connect(resource, :data)
       _(instance.respond_to?(:where)).must_equal true
-      instance.where({ baz: 'yay' }).params.must_equal [data[0]]
+      instance.where({ baz: 'yay' }).params.must_equal [data[0], data[3]]
     end
 
     it 'will delegate even non-existing methods' do
@@ -82,15 +98,15 @@ describe FilterTable do
 
     it 'retrieves all entries' do
       factory.add(:foo).connect(resource, :data)
-      instance.foo.must_equal([3, 2, 2])
+      instance.foo.must_equal([3, 2, 2, eval_to_3])
     end
 
     it 'retrieves entries with simple style' do
       factory.add(:foo, style: :simple)
              .add(:num, style: :simple)
              .connect(resource, :data)
-      instance.foo.must_equal([3, 2])
-      instance.num.must_equal([1, 2])
+      instance.foo.must_equal([3, 2, eval_to_3])
+      instance.num.must_equal([1, 2, eval_to_nil])
     end
   end
 
@@ -100,8 +116,8 @@ describe FilterTable do
     let(:entry) { instance.baz('yay').entries }
 
     it 'retrieves all entries with this field' do
-      entries.length.must_equal 3
-      entry.length.must_equal 1
+      entries.length.must_equal 4
+      entry.length.must_equal 2
     end
 
     it 'retrieves all entries with this field' do
@@ -114,6 +130,7 @@ describe FilterTable do
 
     it 'prints nicely' do
       entry[0].to_s.must_match(/ with baz == "yay" one entry/)
+      entry[1].to_s.must_match(/ with baz == "yay" one entry/)
     end
   end
 
@@ -121,7 +138,7 @@ describe FilterTable do
     before { factory.add(:num).connect(resource, :data) }
 
     it 'filter by nil' do
-      instance.num(nil).params.must_equal [data[0]]
+      instance.num(nil).params.must_equal [data[0], data[3]]
     end
 
     it 'filter by existing numbers' do
@@ -153,7 +170,7 @@ describe FilterTable do
     end
 
     it 'retrieves the float 1.0' do
-      instance.snum(1.0).params.must_equal [data[2]]
+      instance.snum(1.0).params.must_equal [data[2], data[3]]
     end
   end
 
@@ -169,7 +186,7 @@ describe FilterTable do
     before { factory.add(:baz).connect(resource, :data) }
 
     it 'filter by existing strings' do
-      instance.baz('yay').params.must_equal [data[0]]
+      instance.baz('yay').params.must_equal [data[0], data[3]]
     end
 
     it 'filter by missing string' do
@@ -177,7 +194,7 @@ describe FilterTable do
     end
 
     it 'filter by existing regex' do
-      instance.baz(/A/i).params.must_equal [data[0], data[2]]
+      instance.baz(/A/i).params.must_equal [data[0], data[2], data[3]]
     end
 
     it 'filter by missing regex' do
